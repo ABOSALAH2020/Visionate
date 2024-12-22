@@ -1,0 +1,40 @@
+#pragma kernel CSMain
+#include "DistanceFunctions.cginc"
+
+
+// Input parameters
+int _Width;
+int _Height;
+float _GridScale;
+float _NoiseResolution;
+float3 _GridOrigin;
+float _MaxDistance;
+
+// Output buffer
+RWStructuredBuffer<float> _HeightsBuffer;
+
+
+// Thread ID helpers
+[numthreads(8, 8, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    // Compute grid coordinates
+    int x = id.x;
+    int y = id.y;
+    int z = id.z;
+
+    // Ensure within bounds
+    if (x > _Width || y > _Height || z > _Width)
+        return;
+
+    // Calculate world position
+    float3 worldPos = _GridOrigin + float3(x, y, z) / _NoiseResolution;
+
+    // Evaluate the SDF at this point (use your distanceField logic here)
+    float4 sdfValue = distanceField(worldPos);
+
+    // Write the value to the buffer
+    int index = x + y * _Width + z * _Width * _Height;
+    _HeightsBuffer[index] =sdfValue.w; //to store only the distance
+}
+
