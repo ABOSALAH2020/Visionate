@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 
 public class CubeMarching : MonoBehaviour
@@ -11,7 +12,7 @@ public class CubeMarching : MonoBehaviour
 
     [SerializeField] private int width = 10;
     [SerializeField] private int height = 10;
-    [SerializeField] private float noiseResolution = 1;
+   // [SerializeField] private float noiseResolution = 1;
     [SerializeField] private bool  vizualizeNoise;
     [SerializeField] private float heightTresshold = 0.5f;
 
@@ -22,24 +23,20 @@ public class CubeMarching : MonoBehaviour
     private ComputeBuffer heightsBuffer; // Buffer to store SDF values
     private int computeKernel;
 
+    public void GenerateMesh()
+    { // Directly execute the height setting, marching cubes, and mesh setting once
+        setHeights();
+        MarchCubes();
+        setMesh();
+        LoadNewSceneWithMesh();
+    }
     void Start()
     
     {   meshFilter = GetComponent<MeshFilter>();
-        // Initialize compute shader kernel and buffer  
-        computeKernel = sdfComputeShader.FindKernel("CSMain");
-        heightsBuffer = new ComputeBuffer((width + 1)* (height + 1) *(width +1 ), sizeof(float));
-        StartCoroutine(UpdateAll());   //to keep updating every set of time (in this case 0.1 second to make it faster)  
+        
     }
 
-    private IEnumerator UpdateAll(){
-        while(true)
-        {
-            setHeights();
-            MarchCubes();
-            setMesh();
-            yield return new WaitForSeconds(1/10);
-        }
-    }
+   
 
     private void MarchCubes()
     {
@@ -113,74 +110,42 @@ public class CubeMarching : MonoBehaviour
         mesh.triangles= triangles.ToArray();
         mesh.RecalculateNormals();
         meshFilter.mesh = mesh;
+        // Create a new GameObject to hold the mesh and don't destroy it on load
+        GameObject meshHolder = new GameObject("GeneratedMesh");
+        MeshFilter meshHolderFilter = meshHolder.AddComponent<MeshFilter>();
+        meshHolderFilter.mesh = mesh;
+        meshHolder.AddComponent<MeshRenderer>().material = GetComponent<MeshRenderer>().material;
+        DontDestroyOnLoad(meshHolder);
     }
 
     private void setHeights()
     {
-         Vector3 gridOrigin = transform.position;
-
-        // Set compute shader parameters
-        sdfComputeShader.SetFloat("_GridScale", gridScale);
-        sdfComputeShader.SetFloat("_NoiseResolution", noiseResolution);
-        sdfComputeShader.SetVector("_GridOrigin", gridOrigin);
-        sdfComputeShader.SetInt("_Width", width);
-        sdfComputeShader.SetInt("_Height", height);
-
-
-        // Bind the buffer
-        sdfComputeShader.SetBuffer(computeKernel, "_HeightsBuffer", heightsBuffer);
-
-        // Dispatch the compute shader
-        int threadGroupsX = Mathf.CeilToInt((width + 1) / 8.0f);
-        int threadGroupsY = Mathf.CeilToInt((height + 1) / 8.0f);
-        int threadGroupsZ = Mathf.CeilToInt((width + 1) / 8.0f);
-        sdfComputeShader.Dispatch(computeKernel, threadGroupsX, threadGroupsY, threadGroupsZ);
-
-        // Read back the buffer to the heights array
+        Vector3 gridOrigin = transform.position;
         heights = new float[width + 1, height + 1, width + 1];
-        float[] flatHeights = new float[heightsBuffer.count];
-        heightsBuffer.GetData(flatHeights);
 
-        int index = 0;
         for (int x = 0; x < width + 1; x++)
         {
             for (int y = 0; y < height + 1; y++)
             {
                 for (int z = 0; z < width + 1; z++)
                 {
-                    heights[x, y, z] = flatHeights[index++];
+                    // Calculate the world position of the grid point
+                    Vector3 point = gridOrigin + new Vector3(x, y, z) * gridScale;
+
+                    // Sample the SDF from the RayMarchCamera
+                    float sdfValue = rayMarchCamera.EvaluateSDF(point);
+
+                    // Store the value in the heights array
+                    heights[x, y, z] = sdfValue;
                 }
             }
         }
-    
-        /*heights = new float[width +1, height +1, width +1];
-        Vector3 gridOrigin = transform.position;
-
-        for (int x = 0; x < width + 1; x++)
-        {
-             for (int y = 0; y < height + 1; y++)
-            {
-                 for (int z = 0; z < width + 1; z++)
-                 {
-                     // Calculate the world position of the grid point
-                Vector3 point = gridOrigin + new Vector3(x, y, z) / noiseResolution;
-
-                // Sample the SDF from the RayMarchCamera
-                float sdfValue = rayMarchCamera.EvaluateSDF(point);
-
-                // Store the value in the heights array
-                heights[x, y, z] = sdfValue;
-
-                 }
-            }
-        }
-    */
     }
 
-    private void OnDestroy()
+    void LoadNewSceneWithMesh()
     {
-        // Release the compute buffer
-        heightsBuffer.Release();
+        // Load the new scene by name
+        SceneManager.LoadScene("GeneratedMesh");
     }
 
     private void OnDrawGizmosSelected()

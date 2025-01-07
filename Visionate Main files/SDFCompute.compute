@@ -1,5 +1,5 @@
 #pragma kernel CSMain
-#include "DistanceFunctions.cginc"
+#include "DistanceFunction.cginc"
 
 
 // Input parameters

@@ -17,7 +17,7 @@ Shader "Otsem/NewImageEffectShader" //to make it appear
             #pragma target 3.0
 
             #include "UnityCG.cginc"
-            #include "DistanceFunctions.cginc" //for signed distance functions
+            #include "DistanceFunction.cginc" //for signed distance functions
           
 
             sampler2D _MainTex;

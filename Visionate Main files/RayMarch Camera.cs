@@ -55,12 +55,12 @@ public class RayMarchCamera : SceneViewFilter
     public bool isEditingSphere = true; // Flag to track if we're editing a sphere or a box
 
     //public Vector3 modInterval;
-   
 
-    //to calculate the shader based on the light element of unity
+    public Vector3 sphereRotation; // Rotation for spheres
+    public Vector3 boxRotation; // Rotation for boxes
 
-     
-    
+
+
     //to communicate with the shader
     private void OnRenderImage(RenderTexture source, RenderTexture destination){
     
@@ -96,6 +96,8 @@ public class RayMarchCamera : SceneViewFilter
         raymarchMaterial.SetColorArray("_SDFColor", sdfColor.ToArray());
         raymarchMaterial.SetInt("_SelectedIndex", selectedIndex);
         raymarchMaterial.SetInt("_IsEditingSphere", isEditingSphere ? 1 : 0);
+        raymarchMaterial.SetVector("_SphereRotation", sphereRotation);
+        raymarchMaterial.SetVector("_BoxRotation", boxRotation);
         //raymarchMaterial.SetInt("_SDFcounter", Mathf.Min(spheres.Count, sdfColor.Count)); // Align sizes
         //raymarchMaterial.SetVector("modInterval",modInterval);
         
